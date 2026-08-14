@@ -49,10 +49,51 @@ def test_evidence_order():
         raise AssertionError("promotion should fail")
     except EvidenceError:
         pass
-    e.verify_integrity().verify_quality(metric="accuracy",before=.99,after=.99,threshold=.98,passed=True,approved_reclaim_bytes=10)
+    e.freeze_quality_gate(metric="accuracy",threshold=.98,direction="gte").start_measurement()
+    e.verify_integrity().verify_quality(before=.99,after=.99,approved_reclaim_bytes=10)
     e.verify_efficiency(saving=3,unit="gpu_s").verify_economic(amount=2.5,currency="GBP")
     assert e.level == EvidenceLevel.EEA_4_ECONOMIC
     assert abs(e.economic_license_share(.4)-1.0)<1e-12
+
+
+def test_quality_gate_must_be_frozen_before_measurement():
+    e=EfficiencyEvidence("t","freeze",0.1,10,100)
+    try:
+        e.start_measurement()
+        raise AssertionError("measurement must not start without frozen quality gate")
+    except EvidenceError:
+        pass
+    e.freeze_quality_gate(metric="accuracy",threshold=.95,direction="gte").start_measurement()
+    try:
+        e.freeze_quality_gate(metric="accuracy",threshold=.90,direction="gte")
+        raise AssertionError("quality gate must be immutable once frozen")
+    except EvidenceError:
+        pass
+
+
+def test_quality_failure_zero_credit():
+    e=EfficiencyEvidence("t","quality-fail",0.5,50,100)
+    e.freeze_quality_gate(metric="accuracy",threshold=.97,direction="gte").start_measurement().verify_integrity()
+    try:
+        e.verify_quality(before=.98,after=.92,approved_reclaim_bytes=40)
+        raise AssertionError("quality failure must not reach EEA-2")
+    except EvidenceError:
+        pass
+    assert e.level == EvidenceLevel.EEA_1_INTEGRITY
+    assert e.quality_passed is False
+    assert e.approved_reclaim_bytes == 0
+    try:
+        e.verify_efficiency(saving=30,unit="joule")
+        raise AssertionError("quality failure must award zero efficiency credit")
+    except EvidenceError:
+        pass
+
+
+def test_lower_is_better_quality_gate():
+    e=EfficiencyEvidence("t","latency",0.1,10,100)
+    e.freeze_quality_gate(metric="error_rate",threshold=.02,direction="lte").start_measurement().verify_integrity()
+    e.verify_quality(before=.015,after=.019,approved_reclaim_bytes=5)
+    assert e.level == EvidenceLevel.EEA_2_QUALITY
 
 
 def test_candidate_not_saving():
@@ -121,7 +162,8 @@ def test_rcu_name():
 def test_reclaim_fail_closed():
     e=EfficiencyEvidence("t","w",0.3,30,100)
     assert not authorize_reclaim(e,tenant_approved=True).allowed
-    e.verify_integrity().verify_quality(metric="accuracy",before=.99,after=.99,threshold=.98,passed=True,approved_reclaim_bytes=20)
+    e.freeze_quality_gate(metric="accuracy",threshold=.98,direction="gte").start_measurement()
+    e.verify_integrity().verify_quality(before=.99,after=.99,approved_reclaim_bytes=20)
     assert not authorize_reclaim(e,tenant_approved=False).allowed
     d=authorize_reclaim(e,tenant_approved=True,max_reclaim_bytes=10)
     assert d.allowed and d.approved_bytes==10
@@ -148,6 +190,9 @@ def main():
         ("seal_tamper",test_seal_tamper),
         ("hmac_wrong_secret",test_hmac_wrong_secret),
         ("evidence_order",test_evidence_order),
+        ("quality_gate_must_be_frozen_before_measurement",test_quality_gate_must_be_frozen_before_measurement),
+        ("quality_failure_zero_credit",test_quality_failure_zero_credit),
+        ("lower_is_better_quality_gate",test_lower_is_better_quality_gate),
         ("candidate_not_saving",test_candidate_not_saving),
         ("marble_transfer_and_replay",test_marble_transfer_and_replay),
         ("receipt_signature_tamper",test_receipt_signature_tamper),
