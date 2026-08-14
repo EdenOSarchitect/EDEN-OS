@@ -21,12 +21,16 @@ def authorize_reclaim(
     tenant_approved: bool,
     max_reclaim_bytes: Optional[int] = None,
 ) -> ReclaimDecision:
-    """Fail-closed reclaim authorization.
+    """Fail-closed destructive reclaim authorization.
 
-    Candidate classification alone can never authorize destructive reclaim.
+    EDEN efficiency accounting no longer requires a pre-frozen absolute quality
+    threshold, but destructive reclaim remains stricter: relative quality must be
+    measured and must be non-degrading versus the baseline.
     """
-    if evidence.level < EvidenceLevel.EEA_2_QUALITY or evidence.quality_passed is not True:
+    if evidence.level < EvidenceLevel.EEA_2_QUALITY:
         return ReclaimDecision(False, "quality_evidence_required", 0, evidence.level.name, tenant_approved)
+    if evidence.quality_passed is not True or evidence.quality_retention_factor is None or evidence.quality_retention_factor < 1.0:
+        return ReclaimDecision(False, "non_degrading_quality_required_for_destructive_reclaim", 0, evidence.level.name, tenant_approved)
     if not tenant_approved:
         return ReclaimDecision(False, "tenant_approval_required", 0, evidence.level.name, False)
     approved = evidence.approved_reclaim_bytes
@@ -36,4 +40,4 @@ def authorize_reclaim(
         approved = min(approved, max_reclaim_bytes)
     if approved <= 0:
         return ReclaimDecision(False, "nothing_approved_for_reclaim", 0, evidence.level.name, True)
-    return ReclaimDecision(True, "quality_and_tenant_approved", approved, evidence.level.name, True)
+    return ReclaimDecision(True, "relative_quality_and_tenant_approved", approved, evidence.level.name, True)
