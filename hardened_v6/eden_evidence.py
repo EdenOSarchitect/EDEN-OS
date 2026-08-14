@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from enum import IntEnum
 from typing import Any, Dict, Optional
-import time
 
 
 class EvidenceLevel(IntEnum):
@@ -19,6 +18,10 @@ class EvidenceError(ValueError):
     pass
 
 
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
 @dataclass
 class EfficiencyEvidence:
     tenant_id: str
@@ -30,22 +33,18 @@ class EfficiencyEvidence:
 
     integrity_verified: bool = False
 
-    # Quality gate must be declared/frozen before measurement starts.
-    quality_gate_frozen: bool = False
+    # Quality is measured relative to the baseline rather than against a frozen threshold.
     quality_metric: Optional[str] = None
-    quality_threshold: Optional[float] = None
-    quality_direction: Optional[str] = None  # 'gte' means higher is better; 'lte' means lower is better.
-    quality_gate_frozen_at_unix_ms: Optional[int] = None
-    measurement_started: bool = False
-    measurement_started_at_unix_ms: Optional[int] = None
-
-    quality_passed: Optional[bool] = None
+    quality_direction: Optional[str] = None  # 'gte': higher is better; 'lte': lower is better.
     quality_before: Optional[float] = None
     quality_after: Optional[float] = None
+    quality_retention_factor: Optional[float] = None
+    quality_passed: Optional[bool] = None  # True only when EDEN is non-degrading vs baseline.
 
     approved_reclaim_bytes: int = 0
     measured_resource_saving: Optional[float] = None
     measured_resource_unit: Optional[str] = None
+    quality_adjusted_efficiency_credit: Optional[float] = None
     verified_economic_saving: Optional[float] = None
     currency: Optional[str] = None
     independent_validator: Optional[str] = None
@@ -61,79 +60,81 @@ class EfficiencyEvidence:
         if abs(expected - self.candidate_void_rate) > 1e-9:
             raise EvidenceError("candidate_void_rate must equal candidate_void_bytes/observed_bytes")
 
-    def freeze_quality_gate(self, *, metric: str, threshold: float, direction: str = "gte") -> "EfficiencyEvidence":
-        """Pre-register the benchmark quality criterion before measurement begins.
-
-        Once frozen, metric/threshold/direction cannot be changed on this evidence object.
-        """
-        if self.measurement_started:
-            raise EvidenceError("quality gate must be frozen before measurement starts")
-        if self.quality_gate_frozen:
-            raise EvidenceError("quality gate is already frozen")
-        if not metric:
-            raise EvidenceError("quality metric is required")
-        if direction not in {"gte", "lte"}:
-            raise EvidenceError("quality direction must be 'gte' or 'lte'")
-        self.quality_metric = metric
-        self.quality_threshold = float(threshold)
-        self.quality_direction = direction
-        self.quality_gate_frozen = True
-        self.quality_gate_frozen_at_unix_ms = int(time.time() * 1000)
-        return self
-
-    def start_measurement(self) -> "EfficiencyEvidence":
-        """Mark the benchmark as started; requires a pre-frozen quality gate."""
-        if not self.quality_gate_frozen:
-            raise EvidenceError("freeze quality gate before measurement starts")
-        if self.measurement_started:
-            raise EvidenceError("measurement already started")
-        self.measurement_started = True
-        self.measurement_started_at_unix_ms = int(time.time() * 1000)
-        return self
-
-    def _quality_meets_gate(self, value: float) -> bool:
-        if not self.quality_gate_frozen or self.quality_threshold is None or self.quality_direction is None:
-            raise EvidenceError("quality gate is not frozen")
-        if self.quality_direction == "gte":
-            return float(value) >= self.quality_threshold
-        return float(value) <= self.quality_threshold
-
     def verify_integrity(self) -> "EfficiencyEvidence":
         self.integrity_verified = True
         self.level = max(self.level, EvidenceLevel.EEA_1_INTEGRITY)
         return self
 
-    def verify_quality(self, *, before: float, after: float, approved_reclaim_bytes: int) -> "EfficiencyEvidence":
-        """Promote to EEA-2 only when BOTH baseline and EDEN outputs meet the frozen gate."""
-        if not self.measurement_started:
-            raise EvidenceError("measurement must be started after freezing quality gate")
+    def verify_quality(
+        self,
+        *,
+        metric: str,
+        before: float,
+        after: float,
+        direction: str = "gte",
+        approved_reclaim_bytes: int = 0,
+    ) -> "EfficiencyEvidence":
+        """Record relative quality without a pre-frozen absolute threshold.
+
+        quality_retention_factor is capped at 1.0 so quality improvement does not
+        magically amplify a resource saving. A degradation proportionally reduces
+        quality-adjusted efficiency credit later.
+
+        `quality_passed` means non-degrading relative to baseline and remains the
+        fail-closed requirement for destructive reclaim authorization.
+        """
         if not self.integrity_verified:
             raise EvidenceError("EEA-1 integrity must precede EEA-2 quality")
+        if not metric:
+            raise EvidenceError("quality metric is required")
+        if direction not in {"gte", "lte"}:
+            raise EvidenceError("quality direction must be 'gte' or 'lte'")
         if approved_reclaim_bytes < 0 or approved_reclaim_bytes > self.candidate_void_bytes:
             raise EvidenceError("approved reclaim must be within candidate void")
 
-        self.quality_before = float(before)
-        self.quality_after = float(after)
-        baseline_ok = self._quality_meets_gate(before)
-        eden_ok = self._quality_meets_gate(after)
-        self.quality_passed = baseline_ok and eden_ok
-        if not self.quality_passed:
-            self.approved_reclaim_bytes = 0
-            raise EvidenceError("quality gate failed; efficiency credit is zero and EEA-2 promotion denied")
+        before = float(before)
+        after = float(after)
+        self.quality_metric = metric
+        self.quality_direction = direction
+        self.quality_before = before
+        self.quality_after = after
 
-        self.approved_reclaim_bytes = approved_reclaim_bytes
+        if direction == "gte":
+            if before < 0 or after < 0:
+                raise EvidenceError("gte quality values must be non-negative")
+            if before == 0:
+                retention = 1.0 if after >= before else 0.0
+            else:
+                retention = _clamp01(after / before)
+            non_degrading = after >= before
+        else:
+            if before < 0 or after < 0:
+                raise EvidenceError("lte quality values must be non-negative")
+            if after == 0:
+                retention = 1.0
+            elif before == 0:
+                retention = 0.0
+            else:
+                retention = _clamp01(before / after)
+            non_degrading = after <= before
+
+        self.quality_retention_factor = retention
+        self.quality_passed = non_degrading
+        # Only non-degrading quality may authorize destructive reclaim.
+        self.approved_reclaim_bytes = approved_reclaim_bytes if non_degrading else 0
         self.level = max(self.level, EvidenceLevel.EEA_2_QUALITY)
         return self
 
     def verify_efficiency(self, *, saving: float, unit: str) -> "EfficiencyEvidence":
-        if self.level < EvidenceLevel.EEA_2_QUALITY or self.quality_passed is not True:
-            raise EvidenceError("quality gate must pass before EEA-3 efficiency")
+        if self.level < EvidenceLevel.EEA_2_QUALITY or self.quality_retention_factor is None:
+            raise EvidenceError("EEA-2 relative quality measurement must precede EEA-3 efficiency")
         if saving < 0:
             raise EvidenceError("measured saving must be non-negative")
         if not unit:
             raise EvidenceError("measured resource unit is required")
         self.measured_resource_saving = float(saving)
         self.measured_resource_unit = unit
+        self.quality_adjusted_efficiency_credit = float(saving) * self.quality_retention_factor
         self.level = max(self.level, EvidenceLevel.EEA_3_EFFICIENCY)
         return self
 
@@ -168,10 +169,10 @@ class EfficiencyEvidence:
         d["level"] = self.level.name
         d["claims"] = {
             "candidate_void_is_not_saving": True,
-            "quality_gate_pre_registered": self.quality_gate_frozen,
-            "baseline_and_eden_must_pass_quality": True,
-            "quality_failure_means_zero_efficiency_credit": True,
-            "quality_required_before_reclaim": True,
+            "quality_threshold_pre_registration_required": False,
+            "quality_is_measured_relative_to_baseline": True,
+            "quality_degradation_discounts_efficiency_credit": True,
+            "destructive_reclaim_requires_non_degrading_quality": True,
             "economic_value_requires_measured_saving": True,
         }
         return d
