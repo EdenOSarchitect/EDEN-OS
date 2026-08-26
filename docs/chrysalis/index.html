@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EDEN Chrysalis — Communications Refinery</title>
+<style>
+:root{color-scheme:dark;--bg:#06080b;--panel:#0d1117;--line:#202936;--text:#eef4fa;--muted:#8c9aaa;--good:#9fffc7;--warn:#ffd58a;--accent:#8cc8ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#101820 0,#06080b 45%);color:var(--text);font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.wrap{max-width:1180px;margin:auto;padding:28px}.eyebrow{color:var(--accent);letter-spacing:.18em;text-transform:uppercase;font-size:12px}.hero{padding:42px 0 22px}h1{font-size:clamp(36px,7vw,76px);line-height:.95;margin:.2em 0}.lede{max-width:850px;color:#c1ccd7;font-size:18px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.card{background:rgba(13,17,23,.82);border:1px solid var(--line);border-radius:18px;padding:18px}.metric{grid-column:span 3}.wide{grid-column:span 8}.side{grid-column:span 4}.label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}.value{font-size:30px;font-weight:700;margin-top:6px}.good{color:var(--good)}.warn{color:var(--warn)}.controls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}input[type=range]{width:100%}.layers{display:grid;gap:10px}.layer{display:grid;grid-template-columns:120px 1fr 115px;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px}.bar{height:8px;background:#1a222d;border-radius:999px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,#7fb7ff,#a6ffcb)}.status{font-weight:700;text-align:right}.kept{color:var(--good)}.void{color:#ff9fa8}.mono{word-break:break-all;color:#aab8c6;font-size:12px}.truth{border-left:3px solid var(--warn)}.footer{color:var(--muted);padding:34px 0 12px}@media(max-width:800px){.metric,.wide,.side{grid-column:span 12}.controls{grid-template-columns:1fr}.layer{grid-template-columns:95px 1fr 80px}.value{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<div class="eyebrow">EDEN OS / CHRYSALIS</div>
+<h1>Keep the bytes<br>that matter.</h1>
+<p class="lede">Chrysalis is EDEN's communications refinery: it converts a constrained byte budget into a utility-aware decision about what to keep, what to defer, and what to void. The interface below replays the current handset experiment and lets you stress the same policy under different bandwidth windows.</p>
+</section>
+
+<section class="grid">
+<div class="card metric"><div class="label">Mobile data / short run</div><div class="value">6.28 Mbps</div><div class="label">MEASURED · connection type user-reported</div></div>
+<div class="card metric"><div class="label">Wi‑Fi / long baseline</div><div class="value">14.09 Mbps</div><div class="label">10 trials · MEASURED</div></div>
+<div class="card metric"><div class="label">Wi‑Fi median</div><div class="value">12.72 Mbps</div><div class="label">11.02–18.69 observed</div></div>
+<div class="card metric"><div class="label">Stability</div><div class="value">0.799</div><div class="label">derived from trial variance</div></div>
+
+<div class="card wide">
+<div class="label">Chrysalis scenario engine</div>
+<div class="controls">
+<label>Bandwidth: <strong id="bwOut">17.46</strong> Mbps<br><input id="bw" type="range" min="1" max="30" step="0.01" value="17.46"></label>
+<label>Contact / resource window: <strong id="winOut">1.00</strong> s<br><input id="win" type="range" min="0.1" max="10" step="0.1" value="1"></label>
+</div>
+<div class="layers" id="layers"></div>
+</div>
+
+<div class="card side">
+<div class="label">Available byte budget</div><div class="value" id="budget">—</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<div class="label">Candidate payload</div><div class="value">3.75 MB</div>
+<div class="label">Experiment-defined workload</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+<div class="label">Assigned utility retained</div><div class="value good" id="utility">—</div>
+<div class="label">Utility values are experiment-defined</div>
+</div>
+
+<div class="card metric"><div class="label">Constrained replay</div><div class="value good">97.5%</div><div class="label">assigned utility retained</div></div>
+<div class="card metric"><div class="label">Candidate bytes removed</div><div class="value good">53.3%</div><div class="label">under 1 s constrained run</div></div>
+<div class="card metric"><div class="label">Kept</div><div class="value">1.75 MB</div><div class="label">KEEP + STRUCTURE + DETAIL</div></div>
+<div class="card metric"><div class="label">Voided</div><div class="value">2.00 MB</div><div class="label">RESIDUAL</div></div>
+
+<div class="card wide">
+<div class="label">What the measured experiment demonstrated</div>
+<p>On the Android/Termux handset, network throughput was physically measured. Under the controlled 1-second resource window, Chrysalis selected KEEP, STRUCTURE and DETAIL while voiding RESIDUAL. In that constructed workload, 53.3% of candidate payload bytes were excluded while 97.5% of the experiment's assigned utility was retained.</p>
+<p><strong>Commercial hypothesis:</strong> under real constrained compute/network workloads, EDEN should spend scarce resources on the information that contributes most to the required outcome.</p>
+</div>
+<div class="card side truth">
+<div class="label">Truth boundary</div>
+<p><strong>Network throughput:</strong> MEASURED</p>
+<p><strong>Connection type:</strong> USER-REPORTED</p>
+<p><strong>Communications budget:</strong> DERIVED</p>
+<p><strong>Chrysalis selection:</strong> COMPUTED</p>
+<p><strong>Utility values:</strong> EXPERIMENT-DEFINED</p>
+<p><strong>RF signal:</strong> NOT MEASURED</p>
+<p><strong>Satellite link:</strong> NOT MEASURED</p>
+</div>
+
+<div class="card" style="grid-column:span 12">
+<div class="label">Evidence commitments</div>
+<p class="mono">Constrained Chrysalis run SHA-256: f364803c9f8375fa1e068178e618d5f358371cd1c170ad0b1049f4b34e68aee5</p>
+<p class="mono">Wi‑Fi long throughput run SHA-256: 53c7a7add9c0023f301222bbe0a34c3c953f0c95d94859f420e8f4e8030abfcb</p>
+</div>
+</section>
+<div class="footer">EDEN OS · Experimental research software · Build → Measure → Compare → Verify</div>
+</div>
+<script>
+const candidates=[
+{name:'KEEP',bytes:250000,utility:100},
+{name:'STRUCTURE',bytes:500000,utility:70},
+{name:'DETAIL',bytes:1000000,utility:25},
+{name:'RESIDUAL',bytes:2000000,utility:5}
+];
+const bw=document.getElementById('bw'),win=document.getElementById('win');
+const fmt=n=>n>=1e6?(n/1e6).toFixed(2)+' MB':Math.round(n/1e3)+' KB';
+function render(){
+ const mbps=+bw.value, seconds=+win.value, budgetBytes=mbps*1e6/8*seconds;
+ document.getElementById('bwOut').textContent=mbps.toFixed(2);
+ document.getElementById('winOut').textContent=seconds.toFixed(2);
+ document.getElementById('budget').textContent=fmt(budgetBytes);
+ let used=0,u=0;
+ const ranked=[...candidates].sort((a,b)=>(b.utility/b.bytes)-(a.utility/a.bytes));
+ const keep=new Set();
+ for(const x of ranked){if(used+x.bytes<=budgetBytes){keep.add(x.name);used+=x.bytes;u+=x.utility}}
+ document.getElementById('utility').textContent=(u/200*100).toFixed(1)+'%';
+ document.getElementById('layers').innerHTML=candidates.map(x=>{
+   const k=keep.has(x.name); const pct=x.utility/100*100;
+   return `<div class="layer"><strong>${x.name}</strong><div><div class="bar"><div class="fill" style="width:${pct}%"></div></div><div class="label">${fmt(x.bytes)} · utility ${x.utility}</div></div><div class="status ${k?'kept':'void'}">${k?'KEEP':'VOID'}</div></div>`
+ }).join('');
+}
+bw.addEventListener('input',render);win.addEventListener('input',render);render();
+</script>
+</body>
+</html>
