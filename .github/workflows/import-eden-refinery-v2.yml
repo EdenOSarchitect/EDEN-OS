@@ -1,0 +1,51 @@
+name: Import Eden Refinery v2 source
+
+on:
+  push:
+    branches:
+      - eden-refinery-v2-import
+    paths:
+      - .github/workflows/import-eden-refinery-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: eden-refinery-v2-import
+          fetch-depth: 0
+
+      - name: Download and verify published source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://edenrefineryv2.grok.me/eden-refinery-v2-source.tar.gz'
+          EXPECTED='9e4f7147f2eeb73bb42accd722a87cc68c8f94cb225230aa59a5b73b9cec29dd'
+          curl --fail --location --retry 3 "$URL" -o /tmp/eden-refinery-v2-source.tar.gz
+          ACTUAL="$(sha256sum /tmp/eden-refinery-v2-source.tar.gz | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED"
+          ENTRIES="$(tar -tzf /tmp/eden-refinery-v2-source.tar.gz | wc -l | tr -d ' ')"
+          test "$ENTRIES" = '152'
+
+      - name: Replace branch with exact verified source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          tar -xzf /tmp/eden-refinery-v2-source.tar.gz -C .
+          git status --short
+
+      - name: Commit verified live source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Eden Refinery Import Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Import verified Eden Refinery v2 live source [skip ci]'
+          git push origin HEAD:eden-refinery-v2-import
