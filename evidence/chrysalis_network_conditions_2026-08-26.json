@@ -1,0 +1,53 @@
+{
+  "experiment": "EDEN-CHRYSALIS-NETWORK-CONDITIONS-2026-08-26",
+  "platform": "ANDROID_TERMUX",
+  "runs": [
+    {
+      "connection": "MOBILE_DATA",
+      "connection_source": "USER_REPORTED",
+      "mean_mbps": 6.28,
+      "median_mbps": 5.94,
+      "network_throughput": "MEASURED"
+    },
+    {
+      "connection": "WIFI",
+      "connection_source": "USER_REPORTED",
+      "mean_mbps": 14.09,
+      "median_mbps": 12.72,
+      "min_mbps": 11.02,
+      "max_mbps": 18.69,
+      "stdev_mbps": 2.84,
+      "stability": 0.799,
+      "trials": 10,
+      "network_throughput": "MEASURED",
+      "source_run_sha256": "53c7a7add9c0023f301222bbe0a34c3c953f0c95d94859f420e8f4e8030abfcb"
+    },
+    {
+      "connection": "WIFI",
+      "connection_source": "USER_REPORTED",
+      "mean_mbps": 17.46,
+      "median_mbps": 14.63,
+      "window_seconds": 1,
+      "derived_budget_bytes": 2182336,
+      "candidate_payload_bytes": 3750000,
+      "selected": ["KEEP", "STRUCTURE", "DETAIL"],
+      "voided": ["RESIDUAL"],
+      "bytes_selected": 1750000,
+      "candidate_bytes_removed_pct": 53.3333333333,
+      "assigned_utility_total": 200,
+      "assigned_utility_retained": 195,
+      "assigned_utility_retained_pct": 97.5,
+      "network_throughput": "MEASURED",
+      "source_run_sha256": "f364803c9f8375fa1e068178e618d5f358371cd1c170ad0b1049f4b34e68aee5"
+    }
+  ],
+  "evidence_boundary": {
+    "network_throughput": "MEASURED",
+    "connection_type": "USER_REPORTED",
+    "communications_budget": "DERIVED",
+    "chrysalis_selection": "COMPUTED",
+    "utility_values": "EXPERIMENT_DEFINED",
+    "rf_signal": "NOT_MEASURED",
+    "satellite_link": "NOT_MEASURED"
+  }
+}
