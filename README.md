@@ -10,11 +10,22 @@ No stage is silently promoted to the next.
 
 ## Start here
 
+- [`docs/chrysalis/index.html`](docs/chrysalis/index.html) — interactive Chrysalis communications-refinery proof using measured Android/Termux network conditions and explicit evidence boundaries.
 - [`docs/EVIDENCE_INDEX.md`](docs/EVIDENCE_INDEX.md) — what is implemented, measured, simulated, proposed or unsupported.
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) — reproduction protocol and current blockers.
 - [`docs/PUBLIC_UPDATE_2026-08-12.md`](docs/PUBLIC_UPDATE_2026-08-12.md) — latest public research update.
 - [`SECURITY.md`](SECURITY.md) — public secret-handling and security boundaries.
 - [`evidence/`](evidence/) — machine-readable execution evidence.
+
+## Chrysalis communications proof
+
+The current physical-handset experiment measures IP network throughput and applies a controlled communications budget to a four-layer candidate payload: KEEP, STRUCTURE, DETAIL and RESIDUAL.
+
+In the constrained Wi-Fi run, the measured network condition was 17.46 Mbps mean throughput. Under a controlled 1-second resource window, Chrysalis selected KEEP + STRUCTURE + DETAIL and voided RESIDUAL. For that experiment-defined workload this excluded **53.3% of candidate payload bytes while retaining 97.5% of assigned utility**.
+
+Evidence boundary: network throughput is **MEASURED**; connection type is **USER-REPORTED**; communications budget is **DERIVED**; Chrysalis selection is **COMPUTED**; utility values are **EXPERIMENT-DEFINED**; RF and satellite link remain **NOT MEASURED**.
+
+Machine-readable summary: [`evidence/chrysalis_network_conditions_2026-08-26.json`](evidence/chrysalis_network_conditions_2026-08-26.json).
 
 ## Hardened v6 public test path
 
