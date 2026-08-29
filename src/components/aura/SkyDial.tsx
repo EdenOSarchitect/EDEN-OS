@@ -69,22 +69,27 @@ export function SkyDial({ bodies }: { bodies: ModelledBody[] }) {
       ctx.fillText(t, cx + dx * (r + 14), cy + dy * (r + 14));
     }
 
-    const plot = (az: number, el: number, color: string, rad: number, ring = false) => {
-      if (el < 0) return;
+    const position = (az: number, el: number) => {
+      if (el < 0) return null;
       const rho = r * ((90 - Math.min(el, 90)) / 90);
       const a = ((az - 90) * Math.PI) / 180;
-      const x = cx + Math.cos(a) * rho;
-      const y = cy + Math.sin(a) * rho;
+      return { x: cx + Math.cos(a) * rho, y: cy + Math.sin(a) * rho };
+    };
+
+    const plot = (az: number, el: number, color: string, rad: number, ring = false) => {
+      const p = position(az, el);
+      if (!p) return null;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
       ctx.fill();
       if (ring) {
         ctx.strokeStyle = color;
         ctx.beginPath();
-        ctx.arc(x, y, rad + 3, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, rad + 3, 0, Math.PI * 2);
         ctx.stroke();
       }
+      return p;
     };
 
     for (const t of tracks) {
@@ -93,7 +98,15 @@ export function SkyDial({ bodies }: { bodies: ModelledBody[] }) {
     }
 
     for (const b of bodies) {
-      plot(b.azimuthDeg, b.elevationDeg, "#a3926e", b.kind === "MOON" ? 3.5 : 2.5);
+      const radius = b.kind === "MOON" ? 3.5 : b.kind === "PLANET" ? 4 : 2.5;
+      const p = plot(b.azimuthDeg, b.elevationDeg, "#a3926e", radius, b.kind === "PLANET");
+      if (p) {
+        ctx.fillStyle = "#a3926e";
+        ctx.font = "8px IBM Plex Mono, ui-monospace, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(b.name, p.x + 7, p.y - 7);
+        ctx.textAlign = "center";
+      }
     }
 
     if (selected) {
