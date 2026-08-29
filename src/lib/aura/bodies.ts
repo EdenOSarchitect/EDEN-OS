@@ -17,7 +17,7 @@ import type { Observer as AuraObserver } from "./types.ts";
 export interface ModelledBody {
   id: string;
   name: string;
-  kind: "MOON" | "COMET";
+  kind: "MOON" | "PLANET" | "COMET";
   azimuthDeg: number;
   elevationDeg: number;
   rangeKm: number;
@@ -37,15 +37,17 @@ function astroObserver(o: AuraObserver) {
   return new Observer(o.latDeg, o.lonDeg, o.altKm * 1000);
 }
 
-/** Moon look angles from astronomy-engine. MODELLED — not a detection. */
-export function lookMoon(observer: AuraObserver, date: Date): ModelledBody {
+function lookAstronomyBody(
+  body: Body,
+  observer: AuraObserver,
+  date: Date,
+  meta: Pick<ModelledBody, "id" | "name" | "kind">,
+): ModelledBody {
   const obs = astroObserver(observer);
-  const eq = Equator(Body.Moon, date, obs, true, true);
+  const eq = Equator(body, date, obs, true, true);
   const hor = Horizon(date, obs, eq.ra, eq.dec, "normal");
   return {
-    id: "moon",
-    name: "MOON",
-    kind: "MOON",
+    ...meta,
     azimuthDeg: ((hor.azimuth % 360) + 360) % 360,
     elevationDeg: hor.altitude,
     rangeKm: eq.dist * KM_PER_AU,
@@ -54,6 +56,24 @@ export function lookMoon(observer: AuraObserver, date: Date): ModelledBody {
     aboveHorizon: hor.altitude > 0,
     state: "MODELLED",
   };
+}
+
+/** Moon look angles from astronomy-engine. MODELLED — not a detection. */
+export function lookMoon(observer: AuraObserver, date: Date): ModelledBody {
+  return lookAstronomyBody(Body.Moon, observer, date, {
+    id: "moon",
+    name: "MOON",
+    kind: "MOON",
+  });
+}
+
+/** Saturn apparent topocentric look angles. MODELLED — not an RF or optical detection. */
+export function lookSaturn(observer: AuraObserver, date: Date): ModelledBody {
+  return lookAstronomyBody(Body.Saturn, observer, date, {
+    id: "saturn",
+    name: "SATURN",
+    kind: "PLANET",
+  });
 }
 
 /**
@@ -136,5 +156,5 @@ export function subsolarPoint(date: Date): Subsolar {
 }
 
 export function modelledBodies(observer: AuraObserver, date: Date): ModelledBody[] {
-  return [lookMoon(observer, date), lookComet(observer, date)];
+  return [lookMoon(observer, date), lookSaturn(observer, date), lookComet(observer, date)];
 }
