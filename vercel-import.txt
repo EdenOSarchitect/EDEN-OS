@@ -1,0 +1,14 @@
+See HANDOFF.md §5 for Vercel import settings.
+
+Framework: Other
+Build: npm run build
+Output directory: (empty — Nitro writes .vercel/output)
+Node: 22.x
+
+Env:
+  VITE_AUTH_ENABLED=false
+  VITE_SITE_URL=https://edenrefinery.com
+
+Do not set DATABASE_URL / BETTER_AUTH_*.
+Custom-domain DNS: only the records YOUR Vercel project shows after you add
+edenrefinery.com and www.edenrefinery.com. Never copy grok.me Cloudflare IPs.
