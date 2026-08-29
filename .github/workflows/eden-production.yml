@@ -1,0 +1,105 @@
+name: EDEN production pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: eden-production-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate refinery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build production bundle
+        env:
+          DATABASE_URL: ''
+        run: npm run build
+
+      - name: Confirm AURA production bundle exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! find .vercel/output -type f -name '*aura*' -print -quit | grep -q .; then
+            echo 'AURA bundle missing from production output' >&2
+            exit 1
+          fi
+
+      - name: Confirm Saturn tracking source is present
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'Body.Saturn' src/lib/aura/bodies.ts
+          grep -q 'SATURN' src/lib/aura/bodies.ts
+          echo 'Saturn AURA model present'
+
+  production-smoke:
+    name: Production smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Wait for Vercel Git deployment
+        shell: bash
+        env:
+          PRODUCTION_URL: ${{ vars.EDEN_PRODUCTION_URL || 'https://eden-os-gpt-ed10.vercel.app' }}
+        run: |
+          set -euo pipefail
+          echo "Checking ${PRODUCTION_URL}/aura"
+          for attempt in $(seq 1 30); do
+            code=$(curl -L -sS -o /tmp/aura.html -w '%{http_code}' "${PRODUCTION_URL}/aura" || true)
+            if [ "$code" = '200' ] && grep -q 'AURA FIELD' /tmp/aura.html; then
+              echo "Production AURA is live (attempt ${attempt})"
+              exit 0
+            fi
+            echo "Attempt ${attempt}: HTTP ${code}; waiting for production deployment..."
+            sleep 10
+          done
+          echo 'Production AURA smoke check did not become healthy in time' >&2
+          exit 1
+
+      - name: Verify canonical production identity
+        shell: bash
+        env:
+          PRODUCTION_URL: ${{ vars.EDEN_PRODUCTION_URL || 'https://eden-os-gpt-ed10.vercel.app' }}
+        run: |
+          set -euo pipefail
+          curl -L -fsS "${PRODUCTION_URL}/aura" -o /tmp/aura.html
+          grep -q 'EDEN Refinery' /tmp/aura.html
+          grep -q 'https://edenrefinery.com/' /tmp/aura.html
+          echo 'Canonical EDEN Refinery identity verified'
