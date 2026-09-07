@@ -72,7 +72,7 @@ jobs:
           tenant-id: 0361f9da-46e7-4898-a6e0-a13f8f6859c7
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_51BD1F48F9284F2DBABDEE891D1F5400 }}
 
-      - name: Resolve Azure resource group
+      - name: Resolve Azure target
         shell: bash
         run: |
           RG="$(az webapp list --query "[?name=='EDEN-OS'].resourceGroup | [0]" -o tsv)"
@@ -80,8 +80,15 @@ jobs:
             echo "EDEN-OS App Service was not found in this subscription."
             exit 1
           fi
+          HOST="$(az webapp show -g "$RG" -n EDEN-OS --query defaultHostName -o tsv)"
+          if [ -z "$HOST" ]; then
+            echo "Azure did not return a default hostname for EDEN-OS."
+            exit 1
+          fi
           echo "AZURE_RG=$RG" >> "$GITHUB_ENV"
+          echo "AZURE_HOST=$HOST" >> "$GITHUB_ENV"
           echo "Resolved resource group: $RG"
+          echo "Resolved host: $HOST"
 
       - name: Configure prebuilt Python runtime
         shell: bash
@@ -125,7 +132,7 @@ jobs:
       - name: Verify live health endpoint
         shell: bash
         run: |
-          URL="https://eden-os.azurewebsites.net/health"
+          URL="https://${AZURE_HOST}/health"
           echo "Checking $URL"
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error --max-time 20 "$URL" | tee health.json; then
@@ -137,7 +144,7 @@ jobs:
             sleep 10
           done
           echo "Deployment completed but health endpoint did not become ready."
-          az webapp log tail -g "$AZURE_RG" -n EDEN-OS --timeout 30 || true
+          az webapp log tail -g "$AZURE_RG" -n EDEN-OS || true
           exit 1
 
       - name: Run small live Azure prove
@@ -156,15 +163,20 @@ jobs:
             --max-time 120 \
             -H 'Content-Type: application/json' \
             --data @prove-request.json \
-            https://eden-os.azurewebsites.net/prove \
+            "https://${AZURE_HOST}/prove" \
             | tee prove-result.json
           python - <<'PY'
           import json
           p=json.load(open('prove-result.json'))
           print('\n=== SMALL LIVE PROVE SUMMARY ===')
-          for key in ('equivalence','reused','cpu_reduction_percent','wall_reduction_percent','full_executions_avoided','report_commitment'):
-              if key in p:
-                  print(f'{key}: {p[key]}')
+          v=p.get('verification', {})
+          m=p.get('metrics', {})
+          print('output_equivalence:', v.get('output_equivalence'))
+          print('reuse_observed:', v.get('reuse_observed'))
+          print('cpu_reduction_pct:', m.get('cpu_reduction_pct'))
+          print('wall_reduction_pct:', m.get('wall_reduction_pct'))
+          print('full_execution_avoided:', m.get('full_execution_avoided'))
+          print('report_commitment:', p.get('report_commitment'))
           print(json.dumps(p, indent=2, sort_keys=True))
           PY
 
