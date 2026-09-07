@@ -7,6 +7,10 @@ def executor(payload):
     return {"value": int(payload["x"]) ** 2}
 
 
+def alternate_executor(payload):
+    return {"value": int(payload["x"]) ** 3}
+
+
 class OptimizerTests(unittest.TestCase):
     def test_health(self):
         optimizer = EdenOptimizer()
@@ -35,10 +39,20 @@ class OptimizerTests(unittest.TestCase):
         second = optimizer.execute("w", {"x": 5}, executor, OptimizationMode.OPTIMIZE)
         self.assertFalse(second.reused)
 
+    def test_cache_is_scoped_by_workload(self):
+        optimizer = EdenOptimizer()
+        first = optimizer.execute("square", {"x": 4}, executor, OptimizationMode.OPTIMIZE)
+        second = optimizer.execute("cube", {"x": 4}, alternate_executor, OptimizationMode.OPTIMIZE)
+        self.assertFalse(first.reused)
+        self.assertFalse(second.reused)
+        self.assertNotEqual(first.output_hash, second.output_hash)
+
     def test_prove_requires_equivalent_output(self):
         optimizer = EdenOptimizer()
         report = optimizer.prove("w", {"x": 9}, executor)
         self.assertEqual(report["verification"]["output_equivalence"], "PASS")
+        self.assertTrue(report["verification"]["same_workload"])
+        self.assertTrue(report["verification"]["same_input"])
         self.assertTrue(report["verification"]["reuse_observed"])
         self.assertEqual(report["metrics"]["full_execution_avoided"], 1)
         self.assertFalse(report["evidence"]["independent_validation"])
