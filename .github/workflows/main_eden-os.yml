@@ -145,11 +145,116 @@ jobs:
           print(json.dumps(p, indent=2, sort_keys=True))
           PY
 
-      - name: Upload live proof artifact
+      - name: Checkout Marble v2 reference implementation
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Mint and verify Marble v2 from successful Azure proof
+        shell: bash
+        run: |
+          python -m pip install -r source/hardened_v6/requirements.txt
+          PYTHONPATH=source/hardened_v6 python - <<'PY'
+          import json, os
+          from eden_common import sha256_hex
+          from eden_marble_exchange_v2 import AgentKeypair, SqliteMarbleLedger, verify_signature
+
+          proof = json.load(open('prove-result.json'))
+          request = json.load(open('prove-request.json'))
+          verification = proof.get('verification', {})
+          if verification.get('output_equivalence') != 'PASS':
+              raise SystemExit('Refusing to mint Marble: output equivalence did not PASS')
+          if verification.get('reuse_observed') is not True:
+              raise SystemExit('Refusing to mint Marble: reuse was not observed')
+
+          signer = AgentKeypair('eden-azure-proof-workflow')
+          payload = {
+              'protocol': 'EDEN-OS/Azure-Proof-Marble-v2',
+              'workload_id': proof.get('workload_id'),
+              'request': request,
+              'report_commitment': proof.get('report_commitment'),
+              'baseline_output_hash': verification.get('baseline_output_hash'),
+              'eden_output_hash': verification.get('eden_output_hash'),
+              'output_equivalence': verification.get('output_equivalence'),
+              'reuse_observed': verification.get('reuse_observed'),
+              'metrics': proof.get('metrics', {}),
+              'evidence': proof.get('evidence', {}),
+              'deployment': proof.get('deployment', {}),
+              'azure_host': os.environ.get('AZURE_HOST'),
+              'source_commit': os.environ.get('GITHUB_SHA'),
+          }
+          signature = signer.sign('azure-proof-marble-v2', payload)
+          content = {
+              'payload': payload,
+              'signer': {
+                  'agent_id': signer.identity.agent_id,
+                  'public_key_b64': signer.identity.public_key_b64,
+              },
+              'signature_ed25519': signature,
+          }
+
+          ledger = SqliteMarbleLedger('marble-ledger.sqlite')
+          ledger.register_identity(signer.identity)
+          report_id = str(proof.get('report_commitment', '')).replace('sha256:', '')
+          marble_id = f"marble_azure_1m_{report_id[:24]}"
+          record = ledger.mint(
+              owner_agent_id=signer.agent_id,
+              content=content,
+              metadata={
+                  'kind': 'AZURE_PROVE_EVIDENCE',
+                  'evidence_class': proof.get('evidence', {}).get('class'),
+                  'independent_validation': False,
+                  'iterations': request.get('payload', {}).get('iterations'),
+              },
+              marble_id=marble_id,
+          )
+
+          content_hash_ok = record['content_hash'] == sha256_hex(content, domain='marble-content-v2')
+          signature_ok = verify_signature(signer.identity, 'azure-proof-marble-v2', payload, signature)
+          proof_binding_ok = (
+              payload['report_commitment'] == proof.get('report_commitment') and
+              payload['baseline_output_hash'] == verification.get('baseline_output_hash') and
+              payload['eden_output_hash'] == verification.get('eden_output_hash')
+          )
+          verified = bool(content_hash_ok and signature_ok and proof_binding_ok)
+          if not verified:
+              raise SystemExit('Marble verification failed')
+
+          artifact = {
+              'marble': record,
+              'content': content,
+              'verification': {
+                  'verified': verified,
+                  'content_hash_ok': content_hash_ok,
+                  'signature_ok': signature_ok,
+                  'proof_binding_ok': proof_binding_ok,
+                  'output_equivalence': verification.get('output_equivalence'),
+                  'reuse_observed': verification.get('reuse_observed'),
+              },
+              'truth': {
+                  'marbles_minted': 1,
+                  'ledger_scope': 'SQLite local/reference state; not global consensus',
+                  'independent_validation': False,
+              },
+          }
+          with open('marble-v2.json', 'w') as f:
+              json.dump(artifact, f, indent=2, sort_keys=True)
+          print('\n=== MARBLE V2 SUMMARY ===')
+          print('marbles_minted: 1')
+          print('marble_id:', marble_id)
+          print('verified:', verified)
+          print('content_hash:', record['content_hash'])
+          print('signature_ok:', signature_ok)
+          print('proof_binding_ok:', proof_binding_ok)
+          PY
+
+      - name: Upload live proof and Marble artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eden-azure-1m-prove
+          name: eden-azure-1m-prove-marble
           path: |
             health.json
             prove-request.json
             prove-result.json
+            marble-v2.json
+            marble-ledger.sqlite
