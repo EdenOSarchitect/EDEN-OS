@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
       - name: Install dependencies and test
         run: |
@@ -74,19 +74,23 @@ jobs:
           echo "AZURE_RG=$RG" >> "$GITHUB_ENV"
           echo "Resolved resource group: $RG"
 
-      - name: Configure Flask startup
+      - name: Configure Python runtime and Flask startup
         shell: bash
         run: |
-          az webapp config appsettings set \
-            --resource-group "$AZURE_RG" \
-            --name EDEN-OS \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true >/dev/null
           az webapp config set \
             --resource-group "$AZURE_RG" \
             --name EDEN-OS \
+            --linux-fx-version "PYTHON|3.12" \
             --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 app:app" >/dev/null
+          az webapp config appsettings set \
+            --resource-group "$AZURE_RG" \
+            --name EDEN-OS \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true >/dev/null
+          echo "Runtime: $(az webapp config show -g "$AZURE_RG" -n EDEN-OS --query linuxFxVersion -o tsv)"
 
-      - name: Deploy zip without waiting on Kudu status stream
+      - name: Deploy zip
+        id: zipdeploy
+        continue-on-error: true
         shell: bash
         run: |
           az webapp deploy \
@@ -97,6 +101,17 @@ jobs:
             --clean true \
             --restart true \
             --track-status false
+
+      - name: Show deployment diagnostics on failure
+        if: steps.zipdeploy.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "=== Deployment log ==="
+          az webapp log deployment show -g "$AZURE_RG" -n EDEN-OS || true
+          echo "=== App configuration ==="
+          az webapp config show -g "$AZURE_RG" -n EDEN-OS \
+            --query '{linuxFxVersion:linuxFxVersion,alwaysOn:alwaysOn,appCommandLine:appCommandLine}' -o json || true
+          exit 1
 
       - name: Verify live health endpoint
         shell: bash
@@ -113,4 +128,5 @@ jobs:
             sleep 10
           done
           echo "Deployment completed but health endpoint did not become ready."
+          az webapp log tail -g "$AZURE_RG" -n EDEN-OS --timeout 30 || true
           exit 1
