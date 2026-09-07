@@ -5,7 +5,7 @@ import json
 import time
 from dataclasses import dataclass, asdict
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 
 class OptimizationMode(str, Enum):
@@ -29,9 +29,9 @@ class ExecutionRecord:
 class EdenOptimizer:
     """Minimal commercial wrapper for EDEN Compute Optimizer v1.
 
-    v1 performs exact-input deterministic reuse only. This deliberately keeps
-    the first product narrow and fail-closed: an item is reused only when its
-    canonical input hash is already present in the local verified cache.
+    v1 performs exact-input deterministic reuse only. Reuse is scoped by both
+    workload identity and canonical payload so identical inputs cannot collide
+    across different workload adapters.
     """
 
     VERSION = "1.0.0"
@@ -49,6 +49,12 @@ class EdenOptimizer:
     def _hash(cls, value: Any) -> str:
         return "sha256:" + hashlib.sha256(cls._canonical(value)).hexdigest()
 
+    @classmethod
+    def _input_hash(cls, workload_id: str, payload: Any) -> str:
+        if not workload_id:
+            raise ValueError("workload_id is required")
+        return cls._hash({"workload_id": workload_id, "payload": payload})
+
     def health(self) -> Dict[str, Any]:
         return {
             "product": "EDEN Compute Optimizer",
@@ -59,13 +65,13 @@ class EdenOptimizer:
         }
 
     def analyze(self, workload_id: str, payload: Any) -> Dict[str, Any]:
-        input_hash = self._hash(payload)
+        input_hash = self._input_hash(workload_id, payload)
         cached = input_hash in self._cache
         return {
             "workload_id": workload_id,
             "input_hash": input_hash,
             "exact_reuse_candidate": cached,
-            "decision_basis": "canonical exact-input hash",
+            "decision_basis": "workload-scoped canonical exact-input hash",
             "claim": "candidate reuse is not a measured saving until baseline-vs-EDEN execution is performed",
         }
 
@@ -77,7 +83,7 @@ class EdenOptimizer:
         mode: OptimizationMode | str = OptimizationMode.OPTIMIZE,
     ) -> ExecutionRecord:
         mode = OptimizationMode(mode)
-        input_hash = self._hash(payload)
+        input_hash = self._input_hash(workload_id, payload)
         reused = False
 
         cpu_start = time.process_time()
@@ -110,9 +116,13 @@ class EdenOptimizer:
         return record
 
     def verify(self, baseline: ExecutionRecord, eden: ExecutionRecord) -> Dict[str, Any]:
-        equivalent = baseline.output_hash == eden.output_hash
+        same_workload = baseline.workload_id == eden.workload_id
+        same_input = baseline.input_hash == eden.input_hash
+        equivalent = same_workload and same_input and baseline.output_hash == eden.output_hash
         return {
             "output_equivalence": "PASS" if equivalent else "FAIL",
+            "same_workload": same_workload,
+            "same_input": same_input,
             "baseline_output_hash": baseline.output_hash,
             "eden_output_hash": eden.output_hash,
             "reuse_observed": eden.reused,
@@ -126,7 +136,8 @@ class EdenOptimizer:
     ) -> Dict[str, Any]:
         baseline = self.execute(workload_id, payload, executor, OptimizationMode.OBSERVE)
 
-        # Prime verified exact-input cache with one conventional execution.
+        # Prime the exact-input cache with one conventional execution. The
+        # following PROVE execution is then eligible for reuse.
         prime = self.execute(workload_id, payload, executor, OptimizationMode.OPTIMIZE)
         eden = self.execute(workload_id, payload, executor, OptimizationMode.PROVE)
 
@@ -153,7 +164,7 @@ class EdenOptimizer:
                 "independent_validation": False,
                 "economic_saving_claimed": False,
                 "energy_saving_claimed": False,
-                "scope": "single-host exact-input deterministic reuse demonstration",
+                "scope": "single-host workload-scoped exact-input deterministic reuse demonstration",
             },
         }
         report["report_commitment"] = self._hash(report)
