@@ -14,6 +14,7 @@ import { Route as AokRouteImport } from './routes/aok'
 import { Route as AuraRouteImport } from './routes/aura'
 import { Route as EvidenceRouteImport } from './routes/evidence'
 import { Route as MarblesRouteImport } from './routes/marbles'
+import { Route as NeuralRouteImport } from './routes/neural'
 import { Route as PilotRouteImport } from './routes/pilot'
 import { Route as RefineryRouteImport } from './routes/refinery'
 import { Route as ShadowRouteImport } from './routes/shadow'
@@ -44,6 +45,11 @@ const MarblesRoute = MarblesRouteImport.update({
   path: '/marbles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NeuralRoute = NeuralRouteImport.update({
+  id: '/neural',
+  path: '/neural',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PilotRoute = PilotRouteImport.update({
   id: '/pilot',
   path: '/pilot',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/aura': typeof AuraRoute
   '/evidence': typeof EvidenceRoute
   '/marbles': typeof MarblesRoute
+  '/neural': typeof NeuralRoute
   '/pilot': typeof PilotRoute
   '/refinery': typeof RefineryRoute
   '/shadow': typeof ShadowRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/aura': typeof AuraRoute
   '/evidence': typeof EvidenceRoute
   '/marbles': typeof MarblesRoute
+  '/neural': typeof NeuralRoute
   '/pilot': typeof PilotRoute
   '/refinery': typeof RefineryRoute
   '/shadow': typeof ShadowRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/aura': typeof AuraRoute
   '/evidence': typeof EvidenceRoute
   '/marbles': typeof MarblesRoute
+  '/neural': typeof NeuralRoute
   '/pilot': typeof PilotRoute
   '/refinery': typeof RefineryRoute
   '/shadow': typeof ShadowRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/aura'
     | '/evidence'
     | '/marbles'
+    | '/neural'
     | '/pilot'
     | '/refinery'
     | '/shadow'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/aura'
     | '/evidence'
     | '/marbles'
+    | '/neural'
     | '/pilot'
     | '/refinery'
     | '/shadow'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/aura'
     | '/evidence'
     | '/marbles'
+    | '/neural'
     | '/pilot'
     | '/refinery'
     | '/shadow'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   AuraRoute: typeof AuraRoute
   EvidenceRoute: typeof EvidenceRoute
   MarblesRoute: typeof MarblesRoute
+  NeuralRoute: typeof NeuralRoute
   PilotRoute: typeof PilotRoute
   RefineryRoute: typeof RefineryRoute
   ShadowRoute: typeof ShadowRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarblesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/neural': {
+      id: '/neural'
+      path: '/neural'
+      fullPath: '/neural'
+      preLoaderRoute: typeof NeuralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pilot': {
       id: '/pilot'
       path: '/pilot'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuraRoute: AuraRoute,
   EvidenceRoute: EvidenceRoute,
   MarblesRoute: MarblesRoute,
+  NeuralRoute: NeuralRoute,
   PilotRoute: PilotRoute,
   RefineryRoute: RefineryRoute,
   ShadowRoute: ShadowRoute,
