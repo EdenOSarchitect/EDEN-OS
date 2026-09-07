@@ -42,7 +42,28 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm test
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Generic PWA metadata tests intentionally exercise the platform
+          # placeholder path. Keep the repository's EDEN share card out of
+          # process.cwd() for that unit-test run, then restore it for build.
+          card=''
+          if [ -f public/og.jpg ]; then
+            card='public/og.jpg'
+          elif [ -f public/og.png ]; then
+            card='public/og.png'
+          fi
+          if [ -n "$card" ]; then
+            mv "$card" /tmp/eden-ci-og-card
+          fi
+          restore_card() {
+            if [ -n "$card" ] && [ -f /tmp/eden-ci-og-card ]; then
+              mv /tmp/eden-ci-og-card "$card"
+            fi
+          }
+          trap restore_card EXIT
+          npm test
 
       - name: Build production bundle
         env:

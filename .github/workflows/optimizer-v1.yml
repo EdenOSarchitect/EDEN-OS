@@ -1,0 +1,29 @@
+name: EDEN Compute Optimizer v1
+
+on:
+  push:
+    branches:
+      - eden-compute-optimizer-v1
+  pull_request:
+    paths:
+      - 'optimizer_v1/**'
+      - '.github/workflows/optimizer-v1.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests
+        run: python -m unittest discover -s optimizer_v1/tests -v
+      - name: Proof demo
+        run: python -m optimizer_v1.demo --iterations 100000
+      - name: Verify report exists
+        run: test -s optimizer_v1/results/EDEN_COMPUTE_OPTIMIZER_V1.json

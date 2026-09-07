@@ -195,7 +195,7 @@ function CameraRig() {
     if (mode === "GLOBAL") return;
     const obs = latLonAltToXYZ(observer.latDeg, observer.lonDeg, 0);
     const sat = track ? latLonAltToXYZ(track.latDeg, track.lonDeg, track.altitudeKm) : obs;
-    let desired = new THREE.Vector3(0, 1.2, 3.2);
+    const desired = new THREE.Vector3(0, 1.2, 3.2);
     if (mode === "OBSERVER") {
       desired.set(obs.x, obs.y, obs.z).multiplyScalar(2.1);
       target.current.set(obs.x, obs.y, obs.z);
