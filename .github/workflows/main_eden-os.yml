@@ -39,9 +39,7 @@ jobs:
           rm -rf release/optimizer_v1/tests release/optimizer_v1/results
           find release -type d -name __pycache__ -prune -exec rm -rf {} + || true
           find release -type f -name '*.pyc' -delete
-          python -m pip install \
-            --target release/.python_packages/lib/site-packages \
-            -r requirements.txt
+          python -m pip install --target release/.python_packages/lib/site-packages -r requirements.txt
           (cd release && zip -r ../release.zip .)
           unzip -l release.zip | tail -n 20
 
@@ -76,15 +74,9 @@ jobs:
         shell: bash
         run: |
           RG="$(az webapp list --query "[?name=='EDEN-OS'].resourceGroup | [0]" -o tsv)"
-          if [ -z "$RG" ]; then
-            echo "EDEN-OS App Service was not found in this subscription."
-            exit 1
-          fi
+          if [ -z "$RG" ]; then echo "EDEN-OS App Service was not found in this subscription."; exit 1; fi
           HOST="$(az webapp show -g "$RG" -n EDEN-OS --query defaultHostName -o tsv)"
-          if [ -z "$HOST" ]; then
-            echo "Azure did not return a default hostname for EDEN-OS."
-            exit 1
-          fi
+          if [ -z "$HOST" ]; then echo "Azure did not return a default hostname for EDEN-OS."; exit 1; fi
           echo "AZURE_RG=$RG" >> "$GITHUB_ENV"
           echo "AZURE_HOST=$HOST" >> "$GITHUB_ENV"
           echo "Resolved resource group: $RG"
@@ -93,36 +85,22 @@ jobs:
       - name: Configure prebuilt Python runtime
         shell: bash
         run: |
-          az webapp config set \
-            --resource-group "$AZURE_RG" \
-            --name EDEN-OS \
-            --linux-fx-version "PYTHON|3.12" \
-            --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 app:app" >/dev/null
-          az webapp config appsettings set \
-            --resource-group "$AZURE_RG" \
-            --name EDEN-OS \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false >/dev/null
+          az webapp config set --resource-group "$AZURE_RG" --name EDEN-OS --linux-fx-version "PYTHON|3.12" --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 app:app" >/dev/null
+          az webapp config appsettings set --resource-group "$AZURE_RG" --name EDEN-OS --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false >/dev/null
           echo "Runtime: $(az webapp config show -g "$AZURE_RG" -n EDEN-OS --query linuxFxVersion -o tsv)"
 
       - name: Deploy prebuilt package
         id: zipdeploy
         continue-on-error: true
         shell: bash
-        run: |
-          az webapp deployment source config-zip \
-            --resource-group "$AZURE_RG" \
-            --name EDEN-OS \
-            --src release.zip
+        run: az webapp deployment source config-zip --resource-group "$AZURE_RG" --name EDEN-OS --src release.zip
 
       - name: Show deployment diagnostics on failure
         if: steps.zipdeploy.outcome == 'failure'
         shell: bash
         run: |
-          echo "=== Deployment log ==="
           az webapp log deployment show -g "$AZURE_RG" -n EDEN-OS || true
-          echo "=== App configuration ==="
-          az webapp config show -g "$AZURE_RG" -n EDEN-OS \
-            --query '{linuxFxVersion:linuxFxVersion,alwaysOn:alwaysOn,appCommandLine:appCommandLine}' -o json || true
+          az webapp config show -g "$AZURE_RG" -n EDEN-OS --query '{linuxFxVersion:linuxFxVersion,alwaysOn:alwaysOn,appCommandLine:appCommandLine}' -o json || true
           exit 1
 
       - name: Restart app
@@ -133,42 +111,29 @@ jobs:
         shell: bash
         run: |
           URL="https://${AZURE_HOST}/health"
-          echo "Checking $URL"
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --max-time 20 "$URL" | tee health.json; then
-              echo
-              echo "EDEN health endpoint is live."
-              exit 0
-            fi
-            echo "Health check attempt $attempt failed; waiting 10 seconds..."
+            if curl --fail --silent --show-error --max-time 20 "$URL" | tee health.json; then echo; echo "EDEN health endpoint is live."; exit 0; fi
             sleep 10
           done
-          echo "Deployment completed but health endpoint did not become ready."
-          az webapp log tail -g "$AZURE_RG" -n EDEN-OS || true
           exit 1
 
-      - name: Run small live Azure prove
+      - name: Run 1M live Azure prove
         shell: bash
         run: |
           cat > prove-request.json <<'JSON'
           {
-            "workload_id": "azure-small-live-prove-001",
+            "workload_id": "azure-1m-live-prove-001",
             "payload": {
-              "iterations": 100000,
+              "iterations": 1000000,
               "seed": 42
             }
           }
           JSON
-          curl --fail --silent --show-error \
-            --max-time 120 \
-            -H 'Content-Type: application/json' \
-            --data @prove-request.json \
-            "https://${AZURE_HOST}/prove" \
-            | tee prove-result.json
+          curl --fail --silent --show-error --max-time 120 -H 'Content-Type: application/json' --data @prove-request.json "https://${AZURE_HOST}/prove" | tee prove-result.json
           python - <<'PY'
           import json
           p=json.load(open('prove-result.json'))
-          print('\n=== SMALL LIVE PROVE SUMMARY ===')
+          print('\n=== 1M LIVE PROVE SUMMARY ===')
           v=p.get('verification', {})
           m=p.get('metrics', {})
           print('output_equivalence:', v.get('output_equivalence'))
@@ -183,7 +148,7 @@ jobs:
       - name: Upload live proof artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eden-azure-small-prove
+          name: eden-azure-1m-prove
           path: |
             health.json
             prove-request.json
