@@ -1,12 +1,13 @@
-# Legacy Azure deployment path.
-#
-# EDEN Refinery production is deployed by Vercel from the GitHub `main` branch.
-# This workflow is deliberately manual-only so a normal website push cannot
-# trigger a second, unrelated production deployment to Azure.
+# Azure validation path for EDEN Compute Optimizer v1.
+# This trigger exists only on the v1 feature branch so the legacy Azure app can
+# be used for a controlled /prove deployment without changing main's deployment policy.
 
-name: Legacy Azure deploy - EDEN-OS
+name: Azure deploy - EDEN Compute Optimizer v1
 
 on:
+  push:
+    branches:
+      - eden-compute-optimizer-v1
   workflow_dispatch:
 
 jobs:
@@ -21,13 +22,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.13'
 
-      - name: Create virtual environment and install dependencies
+      - name: Install dependencies and test
         run: |
-          python -m venv antenv
-          source antenv/bin/activate
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
+          python -m unittest discover -s optimizer_v1/tests -v
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -35,7 +36,7 @@ jobs:
           name: python-app
           path: |
             .
-            !antenv/
+            !.git/
 
   deploy:
     runs-on: ubuntu-latest
