@@ -42,7 +42,11 @@ export function Globe2D() {
       for (let lon = -180; lon <= 180; lon += 6) {
         const p = project(lat, lon, r);
         if (p.z < 0) continue;
-        lon === -180 ? ctx.moveTo(cx + p.x, cy - p.y) : ctx.lineTo(cx + p.x, cy - p.y);
+        if (lon === -180) {
+          ctx.moveTo(cx + p.x, cy - p.y);
+        } else {
+          ctx.lineTo(cx + p.x, cy - p.y);
+        }
       }
       ctx.stroke();
     }
