@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CHRONONAV — Stellar Systems & Signals</title>
+  <meta name="description" content="EDEN OS CHRONONAV stellar-system signal explorer prototype." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">✧</div>
+        <div><strong>EDEN OS &amp; REFINERY LTD.</strong><span>CHRONONAV / STELLAR SIGNAL INTELLIGENCE</span></div>
+      </div>
+      <div class="system-title"><span>CHRONONAV</span><small>STELLAR SYSTEMS · SIGNALS · NAVIGATION</small></div>
+      <div class="status-strip">
+        <div><b id="cataloguedCount">10</b><span>CATALOGUED</span></div>
+        <div><b id="modelledCount">10</b><span>MODELLED</span></div>
+        <div><b>0</b><span>SENSOR-MEASURED</span></div>
+        <div class="utc"><span id="clock">--:--:--Z</span><i></i></div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <nav class="sidebar">
+        <button class="nav-item active" data-view="map">✣ <span>STELLAR MAP</span></button>
+        <button class="nav-item" data-view="systems">◎ <span>SYSTEMS</span></button>
+        <button class="nav-item" data-view="signals">◉ <span>SIGNALS</span></button>
+        <button class="nav-item" data-view="observers">⊕ <span>OBSERVERS</span></button>
+        <button class="nav-item" data-view="search">⌕ <span>SEARCH</span></button>
+        <button class="nav-item" data-view="marble">◇ <span>MARBLE</span></button>
+        <button class="nav-item" data-view="settings">⚙ <span>SETTINGS</span></button>
+        <div class="sidebar-rule"></div>
+        <label class="section-label">DATA LAYERS</label>
+        <label class="check"><input type="checkbox" checked> <span>Star Systems</span></label>
+        <label class="check"><input type="checkbox" checked> <span>Milky Way</span></label>
+        <label class="check"><input type="checkbox"> <span>Constellations</span></label>
+        <label class="check"><input type="checkbox"> <span>Orbits</span></label>
+        <label class="check"><input type="checkbox" checked> <span>Signal Strength</span></label>
+        <label class="check"><input type="checkbox" checked> <span>Notable Objects</span></label>
+        <label class="section-label star-label">STAR TYPES</label>
+        <div class="spectral-list"><span>● O <small>blue / hottest</small></span><span>● B <small>blue-white</small></span><span>● A <small>white</small></span><span>● F <small>yellow-white</small></span><span>● G <small>yellow</small></span><span>● K <small>orange</small></span><span>● M <small>red / coolest</small></span></div>
+      </nav>
+
+      <section class="map-panel">
+        <div class="panel-heading"><div><b>MILKY WAY GALAXY</b><span>Top View · ICRS · LIVE MODEL</span></div><div class="coordinates">RA <b>270°</b> · DEC <b>0°</b> · ZOOM <b>12.4×</b></div></div>
+        <div class="galaxy" id="galaxy">
+          <div class="galaxy-core"></div><div class="galaxy-arm arm-a"></div><div class="galaxy-arm arm-b"></div><div class="galaxy-arm arm-c"></div><div class="galaxy-arm arm-d"></div><div class="galaxy-arm arm-e"></div>
+          <div class="galaxy-label centre">Galactic Centre <small>26,000 ly</small></div>
+          <div class="star-layer" id="starLayer"></div>
+          <div class="constellation-label l1">Cygnus</div><div class="constellation-label l2">Lyra</div><div class="constellation-label l3">Aquila</div><div class="constellation-label l4">Draco</div><div class="constellation-label l5">Scorpius</div><div class="constellation-label l6">Sagittarius</div>
+          <div class="object-label o1">Sirius <small>8.6 ly</small></div><div class="object-label o2">Betelgeuse <small>642.5 ly</small></div><div class="object-label o3">Rigel <small>860 ly</small></div><div class="object-label o4">Deneb <small>1,460 ly</small></div><div class="object-label o5">Altair <small>16.8 ly</small></div><div class="object-label o6">Vega <small>25.04 ly</small></div>
+          <div class="compass"><span>N</span><span>E</span><span>S</span><span>W</span><b>✥</b></div><div class="scale">0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1,000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5,000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10,000 ly</div>
+        </div>
+        <div class="map-footer"><span>MODEL SPACE · STELLAR POSITIONS ARE CATALOGUE-DERIVED</span><span id="selectionHint">SELECT A STAR SYSTEM</span></div>
+      </section>
+
+      <aside class="inspector">
+        <div class="object-header"><div class="star-icon">★</div><div><h2 id="selectedName">VEGA</h2><p id="selectedType">Alpha Lyrae · A0V · Main Sequence</p></div></div>
+        <div class="tabs"><button class="active">OVERVIEW</button><button>SIGNAL</button><button>SPECTRUM</button><button>ORBIT</button><button>EVIDENCE</button></div>
+        <section class="inspector-section"><h3>BASIC DATA</h3><dl id="basicData"></dl></section>
+        <section class="inspector-section highlight"><h3>EXPECTED SUN SIGNAL <em>(FROM VEGA)</em></h3><dl><dt>Solar Irradiance</dt><dd id="irradiance">5.43 × 10⁻¹⁰ W/m²</dd><dt>Illuminance</dt><dd id="lux">5.0 × 10⁻⁸ lux</dd><dt>Apparent Magnitude</dt><dd id="sunMag">+4.8</dd><dt>Visible?</dt><dd>Yes · faint point source</dd></dl></section>
+        <section class="inspector-section"><h3>STATUS</h3><dl><dt>Signal Type</dt><dd class="cyan">MODELLED</dd><dt>Method</dt><dd>Inverse square + spectral weighting</dd><dt>Uncertainty</dt><dd id="uncertainty">Catalogue/model dependent</dd><dt>Provenance</dt><dd>CHRONONAV-STELLAR-1</dd><dt>Marble ID</dt><dd class="mono" id="marbleId">MBL-7F3A-9C2D-4E6B</dd></dl></section>
+      </aside>
+    </main>
+
+    <section class="lower-grid">
+      <div class="card systems-card"><div class="card-title">STELLAR SYSTEMS INDEX <span id="systemCount">10 SYSTEMS</span></div><div class="table-wrap"><table><thead><tr><th>NAME</th><th>TYPE</th><th>DISTANCE</th><th>LUMINOSITY</th><th>APP. MAG.</th><th>STATUS</th></tr></thead><tbody id="systemsTable"></tbody></table></div></div>
+      <div class="card signal-card"><div class="card-title">SOLAR SIGNAL COMPARISON</div><div id="signalBars"></div></div>
+      <div class="card observer-card"><div class="card-title">OBSERVER VIEW (SIMULATION)</div><div class="observer-layout"><div class="mini-sky"><span class="mini-sun">✦</span><span class="mini-cross">⌖</span><small>From Vega (25.04 ly) · Looking at the Sun</small></div><div class="observer-metrics"><span>APPARENT MAGNITUDE<b id="viewMag">+4.8</b></span><span>ILLUMINANCE<b id="viewLux">5.0 × 10⁻⁸ lux</b></span><span>VISUAL APPEARANCE<b>Faint, star-like point</b></span></div></div><p class="disclaimer">Simulation · not a sensor measurement</p></div>
+      <div class="card marble-card"><div class="card-title">EXAMPLE: MARBLE ENCODING <span>v2</span></div><pre id="marbleJson"></pre><div class="marble-footer"><span>✓ Versioned</span><span>✓ Verifiable</span><span>✓ Reproducible</span></div></div>
+    </section>
+    <footer>CHRONONAV v0.1 · EDEN OS &amp; REFINERY LTD.<span>EVERY STAR. EVERY SIGNAL. EVERY SYSTEM.</span></footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
